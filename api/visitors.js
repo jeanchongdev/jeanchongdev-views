@@ -1,62 +1,119 @@
-// api/visitors.js
-// Contador de visitas con SVG animado, ojo + números arcoíris, sin fondo.
+// API para contador de visitantes con SVG animado
+const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args))
 
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
-
-function svg({ label = "Visitors", value = 0 }) {
+function generateSVG({ label = "Visitors", value = 0 }) {
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="220" height="40" viewBox="0 0 220 40" role="img" aria-label="${label}: ${value}">
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="35" viewBox="0 0 180 35" role="img" aria-label="${label}: ${value}">
   <title>${label}: ${value}</title>
+  
+  <!-- Fondo con bordes redondeados -->
+  <rect width="180" height="35" rx="6" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+  
   <defs>
-    <!-- Gradiente animado arcoíris -->
+    <!-- Gradiente animado arcoíris para los números -->
     <linearGradient id="rainbow" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#ff0000"/>
-      <stop offset="20%" stop-color="#ff7f00"/>
-      <stop offset="40%" stop-color="#ffff00"/>
-      <stop offset="60%" stop-color="#00ff00"/>
-      <stop offset="80%" stop-color="#0000ff"/>
-      <stop offset="100%" stop-color="#8f00ff"/>
-      <animate attributeName="x1" values="0%;100%;0%" dur="3s" repeatCount="indefinite"/>
-      <animate attributeName="x2" values="100%;0%;100%" dur="3s" repeatCount="indefinite"/>
+      <stop offset="0%" stop-color="#ff6b6b">
+        <animate attributeName="stop-color" values="#ff6b6b;#4ecdc4;#45b7d1;#96ceb4;#feca57;#ff9ff3;#ff6b6b" dur="3s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="25%" stop-color="#4ecdc4">
+        <animate attributeName="stop-color" values="#4ecdc4;#45b7d1;#96ceb4;#feca57;#ff9ff3;#ff6b6b;#4ecdc4" dur="3s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="50%" stop-color="#45b7d1">
+        <animate attributeName="stop-color" values="#45b7d1;#96ceb4;#feca57;#ff9ff3;#ff6b6b;#4ecdc4;#45b7d1" dur="3s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="75%" stop-color="#96ceb4">
+        <animate attributeName="stop-color" values="#96ceb4;#feca57;#ff9ff3;#ff6b6b;#4ecdc4;#45b7d1;#96ceb4" dur="3s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" stop-color="#feca57">
+        <animate attributeName="stop-color" values="#feca57;#ff9ff3;#ff6b6b;#4ecdc4;#45b7d1;#96ceb4;#feca57" dur="3s" repeatCount="indefinite"/>
+      </stop>
+    </linearGradient>
+    
+    <!-- Gradiente para el ojo -->
+    <linearGradient id="eyeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#58a6ff"/>
+      <stop offset="100%" stop-color="#1f6feb"/>
     </linearGradient>
   </defs>
 
-  <!-- Icono de ojo -->
-  <g transform="translate(5,5) scale(0.7)">
-    <path d="M30 15C23 23 15 27 7 27S-9 23 -16 15C-9 7 -1 3 7 3S23 7 30 15Z" fill="none" stroke="#3b82f6" stroke-width="2.5"/>
-    <circle cx="7" cy="15" r="3" fill="#3b82f6"/>
+  <!-- Ícono del ojo mejorado -->
+  <g transform="translate(8, 8)">
+    <!-- Contorno del ojo -->
+    <ellipse cx="10" cy="10" rx="12" ry="7" fill="none" stroke="url(#eyeGradient)" stroke-width="2"/>
+    <!-- Pupila -->
+    <circle cx="10" cy="10" r="4" fill="url(#eyeGradient)">
+      <animate attributeName="r" values="4;3;4" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <!-- Brillo en el ojo -->
+    <circle cx="12" cy="8" r="1.5" fill="#ffffff" opacity="0.8"/>
   </g>
 
   <!-- Texto "Visitors" -->
-  <text x="50" y="15" font-family="Segoe UI, Roboto, sans-serif" font-weight="600" font-size="12" fill="#888">
-    ${label}
+  <text x="35" y="15" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-weight="600" font-size="11" fill="#7d8590">
+    👁️ ${label}
   </text>
 
-  <!-- Número con animación arcoíris -->
-  <text x="50" y="32" font-family="SFMono-Regular,Consolas,monospace" font-weight="900" font-size="18" fill="url(#rainbow)">
-    ${value.toLocaleString('en-US')}
+  <!-- Número de visitantes con animación -->
+  <text x="35" y="28" font-family="'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace" font-weight="700" font-size="14" fill="url(#rainbow)">
+    ${value.toLocaleString("en-US")}
+    <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite"/>
   </text>
-</svg>`;
+  
+  <!-- Efecto de parpadeo sutil -->
+  <rect width="180" height="35" rx="6" fill="url(#rainbow)" opacity="0.1">
+    <animate attributeName="opacity" values="0.1;0.2;0.1" dur="4s" repeatCount="indefinite"/>
+  </rect>
+</svg>`
 }
 
 module.exports = async (req, res) => {
   try {
-    const { username = "visitor" } = req.query;
-    const namespace = "gh-rainbow-visits";
-    const key = encodeURIComponent(username.toLowerCase());
+    // Obtener el username del query parameter
+    const { username = "visitor" } = req.query
 
-    // Incrementar y obtener visitas actuales
-    const hit = await fetch(`https://api.countapi.xyz/hit/${namespace}/${key}`);
-    const data = await hit.json();
-    const value = typeof data?.value === "number" ? data.value : 0;
+    // Crear un namespace único para tu contador
+    const namespace = "github-profile-views"
+    const key = encodeURIComponent(username.toLowerCase())
 
-    const body = svg({ value });
+    // Headers para evitar cache y permitir CORS
+    res.setHeader("Content-Type", "image/svg+xml")
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+    res.setHeader("Pragma", "no-cache")
+    res.setHeader("Expires", "0")
+    res.setHeader("Access-Control-Allow-Origin", "*")
 
-    res.setHeader("Content-Type", "image/svg+xml");
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.status(200).send(body);
-  } catch (err) {
-    res.setHeader("Content-Type", "image/svg+xml");
-    res.status(200).send(svg({ value: 0 }));
+    // Incrementar contador usando CountAPI
+    const response = await fetch(`https://api.countapi.xyz/hit/${namespace}/${key}`, {
+      method: "GET",
+      headers: {
+        "User-Agent": "GitHub-Profile-Counter/1.0",
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`CountAPI error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const visitorCount = typeof data?.value === "number" ? data.value : 1
+
+    // Generar SVG con el contador actualizado
+    const svgContent = generateSVG({
+      label: "Visitors",
+      value: visitorCount,
+    })
+
+    res.status(200).send(svgContent)
+  } catch (error) {
+    console.error("Error en contador de visitantes:", error)
+
+    // En caso de error, mostrar SVG con valor 0
+    const fallbackSVG = generateSVG({
+      label: "Visitors",
+      value: 0,
+    })
+
+    res.setHeader("Content-Type", "image/svg+xml")
+    res.status(200).send(fallbackSVG)
   }
-};
+}
